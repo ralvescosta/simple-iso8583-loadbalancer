@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	tcpClient "github.com/ralvescosta/mastercard-tcp-proxy/pkg/tcp_client"
+	tcpClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/tcp_client"
 	"github.com/sirupsen/logrus"
 )
 

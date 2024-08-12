@@ -1,4 +1,4 @@
-module github.com/ralvescosta/mastercard-tcp-proxy
+module github.com/ralvescosta/simple-iso8583-loadbalancer
 
 go 1.22.6
 

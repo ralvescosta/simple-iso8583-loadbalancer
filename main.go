@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/ralvescosta/mastercard-tcp-proxy/cmd"
-	"github.com/ralvescosta/mastercard-tcp-proxy/internals"
-	proxyMessageHandler "github.com/ralvescosta/mastercard-tcp-proxy/internals/proxy_handler"
-	proxySynchronizer "github.com/ralvescosta/mastercard-tcp-proxy/internals/proxy_sync"
-	brandConnector "github.com/ralvescosta/mastercard-tcp-proxy/pkg/brand_conn"
-	tcpClient "github.com/ralvescosta/mastercard-tcp-proxy/pkg/tcp_client"
+	"github.com/ralvescosta/simple-iso8583-loadbalancer/cmd"
+	"github.com/ralvescosta/simple-iso8583-loadbalancer/internals"
+	proxyMessageHandler "github.com/ralvescosta/simple-iso8583-loadbalancer/internals/proxy_handler"
+	proxySynchronizer "github.com/ralvescosta/simple-iso8583-loadbalancer/internals/proxy_sync"
+	brandConnector "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/brand_conn"
+	tcpClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/tcp_client"
 	"github.com/sirupsen/logrus"
 )
 

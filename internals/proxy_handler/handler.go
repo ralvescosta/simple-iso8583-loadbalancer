@@ -2,11 +2,13 @@ package proxy
 
 import (
 	"context"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/moov-io/iso8583"
 	connection "github.com/moov-io/iso8583-connection"
-	tcpClient "github.com/ralvescosta/mastercard-tcp-proxy/pkg/tcp_client"
+	tcpClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/tcp_client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,17 +18,28 @@ type (
 	}
 
 	proxyMessageHandler struct {
-		client tcpClient.TCPClient
+		client      tcpClient.TCPClient
+		respTimeout time.Duration
 	}
 )
 
 func NewProxyMessageHandler(tcpClient tcpClient.TCPClient) *proxyMessageHandler {
-	return &proxyMessageHandler{tcpClient}
+	brandRespTimeout := os.Getenv("BRAND_RESPONSE_TIMEOUT")
+	if brandRespTimeout == "" {
+		brandRespTimeout = "10"
+	}
+
+	respTimeout, _ := strconv.Atoi(brandRespTimeout)
+
+	return &proxyMessageHandler{
+		client:      tcpClient,
+		respTimeout: time.Duration(respTimeout) * time.Second,
+	}
 }
 
 func (handler *proxyMessageHandler) Handler(ctx context.Context, c *connection.Connection, message *iso8583.Message) {
 	respChannel := make(chan *iso8583.Message)
-	maxLimitCtx, cancelFunc := context.WithTimeout(ctx, 10*time.Second)
+	maxLimitCtx, cancelFunc := context.WithTimeout(ctx, handler.respTimeout)
 	defer cancelFunc()
 
 	if err := handler.client.Send(message, respChannel); err != nil {

@@ -1,47 +1,22 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/moov-io/iso8583"
-	connection "github.com/moov-io/iso8583-connection"
-	server "github.com/moov-io/iso8583-connection/server"
-	proxy "github.com/ralvescosta/mastercard-tcp-proxy/internals/proxy_handler"
-	tcpHandlers "github.com/ralvescosta/mastercard-tcp-proxy/pkg/server_handlers"
+	proxy "github.com/ralvescosta/simple-iso8583-loadbalancer/internals/proxy_handler"
+	tcpServer "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/tcp_server"
 	"github.com/sirupsen/logrus"
 )
 
-func StartISO8583TCPServer(iso8583Spec *iso8583.MessageSpec, proxyHandler proxy.ProxyMessageHandler) *server.Server {
-	srv := server.New(
-		iso8583Spec,
-		tcpHandlers.ReadMessageLength,
-		tcpHandlers.WriteMessageLength,
-		connection.ConnectionEstablishedHandler(tcpHandlers.ConnectionEstablishedHandler),
-		connection.InboundMessageHandler(tcpHandlers.InboundMessageHandler(proxyHandler)),
-		connection.ErrorHandler(tcpHandlers.ConnectionErrorHandler),
-		connection.ConnectionClosedHandler(tcpHandlers.ConnectionClosedHandler),
-	)
-
-	host := os.Getenv("HOST")
-	if host == "" {
-		host = "127.0.0.1"
-	}
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "4001"
-	}
-
-	addr := fmt.Sprintf("%v:%v", host, port)
+func StartISO8583TCPServer(iso8583Spec *iso8583.MessageSpec, proxyHandler proxy.ProxyMessageHandler) tcpServer.TCPServer {
+	server := tcpServer.NewTCPServer(iso8583Spec, proxyHandler)
 
 	go func() {
 		logrus.Info("starting iso8583 tcp server")
 
-		if err := srv.Start(addr); err != nil {
+		if err := server.Start(); err != nil {
 			logrus.WithError(err).Fatal("tcp server failed")
 		}
 	}()
 
-	return srv
+	return server
 }

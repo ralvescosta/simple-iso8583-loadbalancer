@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/moov-io/iso8583"
-	proxy "github.com/ralvescosta/mastercard-tcp-proxy/internals/proxy_sync"
+	proxy "github.com/ralvescosta/simple-iso8583-loadbalancer/internals/proxy_sync"
 	"github.com/sirupsen/logrus"
 )
 
