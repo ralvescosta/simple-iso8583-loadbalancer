@@ -58,6 +58,13 @@ func NewISO8583Spec() *iso8583.MessageSpec {
 				Pref:        prefix.ASCII.Fixed,
 				Pad:         padding.Left('0'),
 			}),
+			13: field.NewString(&field.Spec{
+				Length:      4,
+				Description: "Local Transaction Date (MMDD)",
+				Enc:         encoding.ASCII,
+				Pref:        prefix.ASCII.Fixed,
+				Pad:         padding.Left('0'),
+			}),
 		},
 	}
 }

@@ -10,8 +10,6 @@ import (
 	"github.com/ralvescosta/simple-iso8583-loadbalancer/cmd"
 	"github.com/ralvescosta/simple-iso8583-loadbalancer/internals"
 	proxyMessageHandler "github.com/ralvescosta/simple-iso8583-loadbalancer/internals/proxy_handler"
-	proxySynchronizer "github.com/ralvescosta/simple-iso8583-loadbalancer/internals/proxy_sync"
-	brandConnector "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/brand_conn"
 	tcpClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/tcp_client"
 	"github.com/sirupsen/logrus"
 )
@@ -22,16 +20,11 @@ func main() {
 		logrus.WithError(err).Fatal("error loading .env file")
 	}
 
-	brandConn, err := brandConnector.NewBrandTCPConn()
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
 	iso8583Spec := internals.NewISO8583Spec()
-	synchronizer := proxySynchronizer.NewProxyMessageSynchronizer(iso8583Spec)
-	tcpClient := tcpClient.NewTCPClient(brandConn, synchronizer)
-	handler := proxyMessageHandler.NewProxyMessageHandler(tcpClient)
+	tcpClient, err := tcpClient.NewTCPClient(iso8583Spec)
+	handleError(err)
 
+	handler := proxyMessageHandler.NewProxyMessageHandler(tcpClient)
 	server := cmd.StartISO8583TCPServer(iso8583Spec, handler)
 	client := cmd.StartTCPClient(tcpClient)
 
@@ -51,4 +44,10 @@ func main() {
 	client.Close()
 
 	logrus.Info("shotdown finished!")
+}
+
+func handleError(err error) {
+	if err != nil {
+		logrus.Fatal(err)
+	}
 }

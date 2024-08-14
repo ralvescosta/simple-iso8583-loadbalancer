@@ -11,6 +11,7 @@ import (
 	iso8583Server "github.com/moov-io/iso8583-connection/server"
 	"github.com/moov-io/iso8583/network"
 	proxy "github.com/ralvescosta/simple-iso8583-loadbalancer/internals/proxy_handler"
+	tcpClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/tcp_client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,6 +26,7 @@ type (
 		proxyHandler  proxy.ProxyMessageHandler
 		serverAddr    string
 		iso8583Server *iso8583Server.Server
+		tcpClient     tcpClient.TCPClient
 	}
 )
 
@@ -70,6 +72,20 @@ func (s *tcpServer) createISO8583ServerInstance() {
 	)
 }
 
+func (s *tcpServer) inboundMessageHandler(c *connection.Connection, message *iso8583.Message) {
+	ctx := context.Background()
+	resp, err := s.tcpClient.Send(ctx, message)
+	if err != nil {
+		logrus.WithError(err).Error("failed to send msg to brand")
+
+		c.Reply(resp)
+
+		return
+	}
+
+	c.Reply(resp)
+}
+
 func (s *tcpServer) readMessageLength(r io.Reader) (int, error) {
 	header := network.NewBinary2BytesHeader()
 	n, err := header.ReadFrom(r)
@@ -88,11 +104,6 @@ func (s *tcpServer) writeMessageLength(w io.Writer, length int) (int, error) {
 
 func (s *tcpServer) connectionEstablishedHandler(c *connection.Connection) {
 	logrus.WithField("host", c.Addr()).Info("client connected")
-}
-
-func (s *tcpServer) inboundMessageHandler(c *connection.Connection, message *iso8583.Message) {
-	ctx := context.Background()
-	s.proxyHandler.Handler(ctx, c, message)
 }
 
 func (s *tcpServer) connectionErrorHandler(err error) {
