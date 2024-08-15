@@ -11,6 +11,7 @@ import (
 	"github.com/moov-io/iso8583"
 	connection "github.com/moov-io/iso8583-connection"
 	"github.com/moov-io/iso8583/network"
+	"github.com/ralvescosta/simple-iso8583-loadbalancer/internals/broadcast"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,13 +27,17 @@ type (
 		brandAddr              string
 		brandReconnectWait     time.Duration
 		brandConnectionTimeout time.Duration
+		brandResponseTimeout   time.Duration
 
-		pool *connection.Pool
+		pool             *connection.Pool
+		broadcastService broadcast.BroadcastService
 	}
 )
 
-func NewTCPClient(spec *iso8583.MessageSpec) (*tcpClient, error) {
-	c := tcpClient{}
+func NewTCPClient(spec *iso8583.MessageSpec, broadcastService broadcast.BroadcastService) (*tcpClient, error) {
+	c := tcpClient{
+		broadcastService: broadcastService,
+	}
 
 	if err := c.loadEnvs(); err != nil {
 		return nil, err
@@ -86,7 +91,7 @@ func (client *tcpClient) factory(addr string) (*connection.Connection, error) {
 		client.readMessageLength,
 		client.writeMessageLength,
 		connection.ConnectTimeout(client.brandConnectionTimeout*time.Second),
-		connection.ReadTimeout(10*time.Second),
+		connection.ReadTimeout(client.brandResponseTimeout*time.Second),
 		connection.ErrorHandler(client.connectionErrorHandler),
 		connection.ConnectionClosedHandler(client.connectionClosedHandler),
 		connection.ConnectionEstablishedHandler(client.connectionEstablishedHandler),
@@ -97,7 +102,6 @@ func (client *tcpClient) factory(addr string) (*connection.Connection, error) {
 	}
 
 	return c, nil
-
 }
 
 func (s *tcpClient) readMessageLength(r io.Reader) (int, error) {
@@ -117,11 +121,13 @@ func (s *tcpClient) writeMessageLength(w io.Writer, length int) (int, error) {
 }
 
 func (s *tcpClient) connectionEstablishedHandler(c *connection.Connection) {
-	logrus.WithField("host", c.Addr()).Info("client connected")
+	logrus.WithField("host", c.Addr()).Info("connected to brand")
+	s.broadcastService.SetBrandConnection(c)
 }
 
 func (s *tcpClient) inboundMessageHandler(c *connection.Connection, message *iso8583.Message) {
-	_ = context.Background()
+	ctx := context.Background()
+	s.broadcastService.Delivery(ctx, message)
 }
 
 func (s *tcpClient) connectionErrorHandler(err error) {
@@ -155,9 +161,18 @@ func (c *tcpClient) loadEnvs() error {
 	brandConnectionTimeout, _ := strconv.Atoi(connectionTimeout)
 
 	//
+	responseTimeout := os.Getenv("BRAND_RESPONSE_TIMEOUT")
+	if responseTimeout == "" {
+		responseTimeout = "10"
+	}
+
+	brandResponseTimeout, _ := strconv.Atoi(responseTimeout)
+
+	//
 	c.brandAddr = brandAddr
 	c.brandReconnectWait = time.Duration(brandReconnectWait)
 	c.brandConnectionTimeout = time.Duration(brandConnectionTimeout)
+	c.brandResponseTimeout = time.Duration(brandResponseTimeout)
 
 	return nil
 }

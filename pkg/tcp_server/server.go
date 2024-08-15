@@ -10,8 +10,8 @@ import (
 	connection "github.com/moov-io/iso8583-connection"
 	iso8583Server "github.com/moov-io/iso8583-connection/server"
 	"github.com/moov-io/iso8583/network"
-	proxy "github.com/ralvescosta/simple-iso8583-loadbalancer/internals/proxy_handler"
-	tcpClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/tcp_client"
+	"github.com/ralvescosta/simple-iso8583-loadbalancer/internals/broadcast"
+	brandClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/brand_client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,15 +22,15 @@ type (
 	}
 
 	tcpServer struct {
-		iso8583Spec   *iso8583.MessageSpec
-		proxyHandler  proxy.ProxyMessageHandler
-		serverAddr    string
-		iso8583Server *iso8583Server.Server
-		tcpClient     tcpClient.TCPClient
+		iso8583Spec      *iso8583.MessageSpec
+		serverAddr       string
+		iso8583Server    *iso8583Server.Server
+		brandClient      brandClient.TCPClient
+		broadcastService broadcast.BroadcastService
 	}
 )
 
-func NewTCPServer(iso8583Spec *iso8583.MessageSpec, proxyHandler proxy.ProxyMessageHandler) *tcpServer {
+func NewTCPServer(iso8583Spec *iso8583.MessageSpec, broadcastService broadcast.BroadcastService) *tcpServer {
 	host := os.Getenv("TCP_SERVER_HOST")
 	if host == "" {
 		host = "127.0.0.1"
@@ -42,9 +42,8 @@ func NewTCPServer(iso8583Spec *iso8583.MessageSpec, proxyHandler proxy.ProxyMess
 	}
 
 	srv := &tcpServer{
-		iso8583Spec:  iso8583Spec,
-		proxyHandler: proxyHandler,
-		serverAddr:   fmt.Sprintf("%v:%v", host, port),
+		iso8583Spec: iso8583Spec,
+		serverAddr:  fmt.Sprintf("%v:%v", host, port),
 	}
 
 	srv.createISO8583ServerInstance()
@@ -74,7 +73,8 @@ func (s *tcpServer) createISO8583ServerInstance() {
 
 func (s *tcpServer) inboundMessageHandler(c *connection.Connection, message *iso8583.Message) {
 	ctx := context.Background()
-	resp, err := s.tcpClient.Send(ctx, message)
+
+	resp, err := s.brandClient.Send(ctx, message)
 	if err != nil {
 		logrus.WithError(err).Error("failed to send msg to brand")
 
@@ -104,6 +104,7 @@ func (s *tcpServer) writeMessageLength(w io.Writer, length int) (int, error) {
 
 func (s *tcpServer) connectionEstablishedHandler(c *connection.Connection) {
 	logrus.WithField("host", c.Addr()).Info("client connected")
+	s.broadcastService.AddServerConnection(c)
 }
 
 func (s *tcpServer) connectionErrorHandler(err error) {

@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	tcpClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/tcp_client"
+	brandClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/brand_client"
 	"github.com/sirupsen/logrus"
 )
 
-func StartTCPClient(client tcpClient.TCPClient) tcpClient.TCPClient {
+func StartTCPClient(client brandClient.TCPClient) brandClient.TCPClient {
 	go func() {
 		if err := client.Start(); err != nil {
 			logrus.WithError(err).Fatal("brand connection failed")

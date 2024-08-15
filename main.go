@@ -9,8 +9,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/ralvescosta/simple-iso8583-loadbalancer/cmd"
 	"github.com/ralvescosta/simple-iso8583-loadbalancer/internals"
-	proxyMessageHandler "github.com/ralvescosta/simple-iso8583-loadbalancer/internals/proxy_handler"
-	tcpClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/tcp_client"
+	"github.com/ralvescosta/simple-iso8583-loadbalancer/internals/broadcast"
+	brandClient "github.com/ralvescosta/simple-iso8583-loadbalancer/pkg/brand_client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,11 +21,10 @@ func main() {
 	}
 
 	iso8583Spec := internals.NewISO8583Spec()
-	tcpClient, err := tcpClient.NewTCPClient(iso8583Spec)
+	broadcastService := broadcast.NewBroadcastService()
+	tcpClient, err := brandClient.NewTCPClient(iso8583Spec, broadcastService)
 	handleError(err)
-
-	handler := proxyMessageHandler.NewProxyMessageHandler(tcpClient)
-	server := cmd.StartISO8583TCPServer(iso8583Spec, handler)
+	server := cmd.StartISO8583TCPServer(iso8583Spec, broadcastService)
 	client := cmd.StartTCPClient(tcpClient)
 
 	shotdown := make(chan os.Signal, 1)
