@@ -1,4 +1,3 @@
-#---- Building Stage
 FROM golang:alpine as build
 
 WORKDIR /build
@@ -13,11 +12,11 @@ RUN go mod download
 COPY . .
 RUN go build --ldflags "-s -w" -o exec main.go
 
-#---- Final Stage
 FROM scratch
 
 WORKDIR /app
 COPY --from=build ./build/exec ./
 COPY ./.env ./
+EXPOSE 4001
 
 CMD ["./exec"]
