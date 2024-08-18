@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 
 	"github.com/moov-io/iso8583"
@@ -64,11 +65,25 @@ func (s *tcpServer) createISO8583ServerInstance() {
 		s.iso8583Spec,
 		s.readMessageLength,
 		s.writeMessageLength,
+		//@WARNING github.com/moov-io/iso8583-connection ConnectionEstablishedHandler are not working
+		//instead we need to use github.com/moov-io/iso8583-connection/server.Server.AddConnectionHandler(...)
 		connection.ConnectionEstablishedHandler(s.connectionEstablishedHandler),
 		connection.InboundMessageHandler(s.inboundMessageHandler),
 		connection.ErrorHandler(s.connectionErrorHandler),
 		connection.ConnectionClosedHandler(s.connectionClosedHandler),
 	)
+
+	s.iso8583Server.AddConnectionHandler(func(tcpConn net.Conn) {
+		conn, err := connection.NewFrom(tcpConn, s.iso8583Spec, s.readMessageLength, s.writeMessageLength)
+		if err != nil {
+			logrus.
+				WithError(err).
+				Error("failed to create the abstracted moov-io connection")
+			return
+		}
+
+		s.broadcastService.AddServerConnection(conn)
+	})
 }
 
 func (s *tcpServer) inboundMessageHandler(c *connection.Connection, message *iso8583.Message) {
@@ -98,8 +113,17 @@ func (s *tcpServer) readMessageLength(r io.Reader) (int, error) {
 
 func (s *tcpServer) writeMessageLength(w io.Writer, length int) (int, error) {
 	header := network.NewBinary2BytesHeader()
-	header.SetLength(length)
-	return header.WriteTo(w)
+	err := header.SetLength(length)
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = header.WriteTo(w)
+	if err != nil {
+		return 0, err
+	}
+
+	return header.Length(), nil
 }
 
 func (s *tcpServer) connectionEstablishedHandler(c *connection.Connection) {
@@ -113,4 +137,6 @@ func (s *tcpServer) connectionErrorHandler(err error) {
 	}
 }
 
-func (s *tcpServer) connectionClosedHandler(c *connection.Connection) {}
+func (s *tcpServer) connectionClosedHandler(c *connection.Connection) {
+	logrus.WithField("host", c.Addr()).Info("client closed")
+}

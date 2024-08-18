@@ -35,6 +35,8 @@ func (s *broadcastService) AddServerConnection(conn *connection.Connection) {
 
 func (s *broadcastService) Delivery(ctx context.Context, message *iso8583.Message) {
 	go func() {
+		delivered := false
+
 		for _, serverConn := range s.serverConnections {
 			resp, err := serverConn.Send(message)
 			if err != nil {
@@ -45,7 +47,18 @@ func (s *broadcastService) Delivery(ctx context.Context, message *iso8583.Messag
 				continue
 			}
 
-			s.brandConnection.Reply(resp)
+			if !delivered {
+				err = s.brandConnection.Reply(resp)
+				if err != nil {
+					logrus.
+						WithError(err).
+						WithField("addr", s.brandConnection.Addr()).
+						Error("failed to replay message to brand connection")
+					continue
+				}
+
+				delivered = true
+			}
 		}
 	}()
 }
